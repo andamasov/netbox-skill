@@ -6,7 +6,7 @@
 
 ## Overview
 
-A full-featured Python service for NetBox integration and network device discovery. The service provides two functional domains — NetBox API operations and SSH-based device discovery — combined with orchestration workflows that discover network topology and populate NetBox. The architecture is transport-agnostic: an MCP server is the primary interface, with an HTTP/REST API entry point scaffolded for future use.
+A full-featured Python service for NetBox integration, network device discovery, and AI-powered rack population from photos. The service provides three functional domains — NetBox API operations, SSH-based device discovery, and vision-based rack analysis — combined with orchestration workflows that discover network topology and populate NetBox. The architecture is transport-agnostic: an MCP server is the primary interface, with an HTTP/REST API entry point scaffolded for future use.
 
 ## Architecture
 
@@ -15,13 +15,13 @@ Transport Layer
   MCP Server  |  HTTP/FastAPI (future)
         |              |
 Service Layer (async, transport-agnostic)
-  NetBoxService  |  DiscoveryService  |  OrchestratorService
-        |              |
+  NetBoxService  |  DiscoveryService  |  OrchestratorService  |  RackVisionService
+        |              |                       |
 Client/Parser Layer
-  NetBoxClient (httpx)  |  SSHClient (asyncssh)  |  DeviceParsers (pluggable)
+  NetBoxClient (httpx)  |  SSHClient (asyncssh)  |  DeviceParsers (pluggable)  |  VisionProviders (pluggable)
         |
 Models Layer (Pydantic v2)
-  NetBox models  |  Discovery models  |  Common types
+  NetBox models  |  Discovery models  |  Rack Vision models  |  Common types
 ```
 
 **Language:** Python
@@ -39,6 +39,7 @@ netbox-skill/
       __init__.py
       netbox.py
       discovery.py
+      rack_vision.py
       common.py
     clients/
       __init__.py
@@ -399,6 +400,7 @@ Route structure mirrors MCP tools:
 - `GET/POST/PATCH/DELETE /api/netbox/{resource}/`
 - `POST /api/discovery/device`, `POST /api/discovery/devices`
 - `POST /api/sync/device`, `POST /api/sync/topology`
+- `POST /api/rack/analyze`, `GET /api/rack/uncertain`, `POST /api/rack/confirm`, `POST /api/rack/populate`
 
 **Initial build:** Entry point and route structure scaffolded. Endpoints return 501 Not Implemented. MCP transport is the priority; HTTP routes are filled in as a second phase using the same service calls.
 
