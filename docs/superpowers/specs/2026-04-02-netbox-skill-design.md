@@ -504,3 +504,49 @@ respx           # HTTP mocking (dev)
 - Scheduled/periodic discovery runs
 - Cable tracing from rack photos (rear-panel photo analysis)
 - Alternative vision providers (OpenAI, local models) — interface defined, only Claude implemented initially
+
+## Nice to Have / Future Features
+
+Features identified from the NetBox Labs ecosystem (netboxlabs.com) that could enhance this service in future iterations:
+
+### Diode gRPC Ingestion
+NetBox Labs ships Diode (`netboxlabs/diode`), a gRPC-based bulk data ingestion service with Python and Go SDKs. Alternative write path to REST that handles deduplication and conflict resolution server-side. Could replace or supplement our REST-based bulk operations for high-volume discovery→populate workflows. Requires NetBox 4.2.3+ and the diode-netbox-plugin.
+
+### Branching Plugin Integration
+The NetBox Branching plugin allows staging changes in isolated branches before merging to production. Maps directly to our `SyncMode.confirm` workflow — instead of dry-run + manual apply, we could create a NetBox branch with proposed changes, let the user review in the NetBox UI, then merge. Adds a formal review/approval layer.
+
+### Change Management Plugin
+Formal approval workflows on top of branching. Sync operations that affect production NetBox data could require approvals from designated reviewers before applying. Useful for environments with strict change control processes.
+
+### Event Streams / Webhook Subscriptions
+Rather than polling NetBox for changes, subscribe to real-time event streams or webhooks. Enables reactive workflows: e.g., when a new device is added to NetBox, automatically trigger discovery against it. NetBox Cloud offers event streams; self-hosted uses webhook/event-rule system.
+
+### GraphQL for Targeted Queries
+NetBox's GraphQL API at `/graphql/` supports flexible querying with field selection, nested object traversal, and filtering. Could reduce API calls and payload size for complex queries (e.g., "get all devices at site X with their interfaces, IPs, and connected cables" in one query instead of multiple REST calls).
+
+### Config Diff Integration
+The Config Diff plugin compares rendered configuration templates against actual device configs. Combined with our SSH discovery, could detect configuration drift: pull running config via SSH, compare against NetBox's rendered template, report differences.
+
+### SNMP-Based Discovery
+Complement SSH/CLI discovery with SNMP for devices that support it. SNMP can provide standardized MIB data (interface counters, system info, LLDP neighbors) without vendor-specific CLI parsing. Useful for devices where SSH access is restricted or CLI output is difficult to parse.
+
+### Observability Data Collection
+NetBox Labs' observability stack uses SNMP, OpenTelemetry (OTLP), and pktvisor for metrics, logs, and traffic analysis. Future integration could pull live telemetry alongside static inventory data — e.g., interface utilization, error counters, bandwidth patterns — and store or correlate with NetBox objects.
+
+### Topology Views Generation
+The Topology Views plugin generates graphical network topology maps from NetBox device and cable data. After our discovery service populates topology data, could trigger topology view generation for visual verification.
+
+### Lifecycle Tracking
+The Lifecycle plugin tracks EOL/EOS dates, licenses, and contracts for devices. Discovery could auto-populate firmware versions, and the service could cross-reference against known EOL databases to flag aging equipment.
+
+### Secrets Plugin for Credential Storage
+Store device SSH credentials directly in NetBox using the Secrets plugin, attached to device objects. Our `CredentialResolver` interface already supports this — implementation would query NetBox Secrets for credentials associated with the target device.
+
+### Prometheus Service Discovery
+The Prometheus SD plugin generates service discovery configs for Prometheus from NetBox data. After populating NetBox via discovery, could auto-generate monitoring targets — closing the loop from discovery → documentation → monitoring.
+
+### Official MCP Server Compatibility
+NetBox Labs ships `netboxlabs/netbox-mcp-server` with 3 read-only tools (`get_objects`, `get_object_by_id`, `get_changelogs`). Our service extends this significantly with write operations, device discovery, rack vision, and orchestration. Consider maintaining tool naming compatibility or offering a migration path for users of the official server.
+
+### Natural Language Queries
+NetBox Copilot demonstrates market demand for conversational infrastructure queries ("show me all devices at site X with expired warranties"). Our MCP tools already enable this through the AI assistant, but dedicated natural-language-to-NetBox-query translation could improve the experience for complex queries.
