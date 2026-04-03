@@ -1,0 +1,1 @@
+"""HTTP/FastAPI transport (scaffolded)."""
