@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-Full-featured network infrastructure service for NetBox integration and network device discovery. Exposes functionality via MCP server transport, with architecture supporting future REST API and CLI transports.
+Full-featured network infrastructure service for NetBox integration, network device discovery, and AI-powered rack population from photos. Exposes functionality via MCP server transport, with architecture supporting future REST API and CLI transports.
 
 ## Target NetBox
 
@@ -19,10 +19,12 @@ Transport Layer (MCP Server / future REST API / future CLI)
 Service Layer (transport-agnostic business logic)
   - NetBox Service (CRUD against NetBox REST API)
   - Discovery Service (SSH into switches, pull operational data)
+  - Rack Vision Service (AI-powered rack photo analysis and population)
         |
 Client/Parser Layer
   - NetBox Client (typed HTTP client for NetBox REST API)
   - Device Parsers (pluggable per-vendor SSH/CLI parsers)
+  - Vision Providers (pluggable AI vision — Claude primary)
 ```
 
 Core principle: the service layer contains all business logic. Transports are thin adapters.

@@ -55,6 +55,11 @@ netbox-skill/
       netbox.py
       discovery.py
       orchestrator.py
+      rack_vision.py
+    vision/
+      __init__.py
+      base.py
+      claude.py
     transports/
       __init__.py
       mcp/
@@ -63,6 +68,7 @@ netbox-skill/
         tools_netbox.py
         tools_discovery.py
         tools_orchestrator.py
+        tools_rack.py
       http/
         __init__.py
         app.py
@@ -74,6 +80,7 @@ netbox-skill/
       netgear/
       fs_com/
       sonic/
+      rack_photos/
     unit/
       parsers/
       services/
@@ -116,6 +123,17 @@ Represent raw data collected from devices:
 - `ConflictRecord(object_type: str, field: str, netbox_value: Any, discovered_value: Any)`
 - `SyncReport(device: DeviceTarget, created: list[ChangeRecord], updated: list[ChangeRecord], unchanged: list[str], conflicts: list[ConflictRecord], errors: list[str])`
 - `BulkResult(created: int, updated: int, unchanged: int, errors: list[str])`
+
+### Rack Vision Models (`models/rack_vision.py`)
+
+Models for the rack photo population feature:
+
+- `RackContext(rack_id: int | None, site: str | None, expected_devices: list[str] | None)` — optional hints to improve vision accuracy
+- `DetectedDevice(u_start: int | None, u_end: int | None, mount_type: str, model_guess: str, confidence: float, asset_tag: str | None, serial: str | None, hostname_label: str | None, crop_region: tuple[int, int, int, int], matched_device_type_id: int | None, match_candidates: list[DeviceTypeMatch] | None)` — `mount_type` is `"rack"` (U-mounted) or `"shelf"` (desktop device on a shelf, no specific U position); `u_start`/`u_end` are `None` for shelf devices
+- `DeviceTypeMatch(device_type_id: int, name: str, similarity: float)` — fuzzy match result against NetBox device types
+- `RackAnalysis(devices: list[DetectedDevice], annotated_image: bytes, rack_context: RackContext, errors: list[str])`
+- `DeviceConfirmation(index: int, confirmed: bool, corrected_model: str | None, corrected_mount_type: str | None, corrected_u_start: int | None, corrected_u_end: int | None, corrected_asset_tag: str | None, corrected_serial: str | None, device_type_id: int | None, create_new_type: bool)` — user response for uncertain devices
+- `RackPopulationReport(rack_id: int, created: list[ChangeRecord], updated: list[ChangeRecord], skipped: list[str], errors: list[str])`
 
 ## Clients
 
@@ -271,6 +289,75 @@ class OrchestratorService:
 - `auto` — apply all changes automatically
 - `confirm` — return diff, apply only explicitly confirmed items (for interactive use via MCP)
 
+### Rack Vision Service (`services/rack_vision.py`)
+
+```python
+class RackVisionService:
+    def __init__(self, vision: VisionProvider, netbox: NetBoxService, confidence_threshold: float = 0.7)
+```
+
+**Workflow:**
+
+1. `analyze_rack_photo(image: bytes | str, context: RackContext) -> RackAnalysis`
+   - Accepts raw image bytes or file path or URL
+   - If URL points to a NetBox image attachment, fetches it via the NetBox client
+   - Sends image to vision provider with structured prompt requesting device identification, U positions, and visible labels
+   - Returns annotated image (full rack with bounding boxes/labels) and structured `DetectedDevice` list with confidence scores
+
+2. `get_uncertain_devices(analysis: RackAnalysis) -> list[tuple[int, DetectedDevice, bytes]]`
+   - Filters devices below `confidence_threshold`
+   - Crops each uncertain device from the original image
+   - Returns list of (index, device, cropped_image) for user review
+
+3. `match_device_types(analysis: RackAnalysis) -> RackAnalysis`
+   - For each detected device, fuzzy match `model_guess` against NetBox device types (`netbox.get_device_types()`)
+   - Uses string similarity (e.g., `difflib.SequenceMatcher` or similar)
+   - If similarity > 0.85 → auto-match, set `matched_device_type_id`
+   - If 0.5–0.85 → populate `match_candidates` for user selection
+   - If < 0.5 → no match, user must confirm creation or manual selection
+
+4. `apply_confirmations(analysis: RackAnalysis, confirmations: list[DeviceConfirmation]) -> RackAnalysis`
+   - Merge user corrections into the analysis
+
+5. `populate_rack(analysis: RackAnalysis, rack_id: int, mode: SyncMode) -> RackPopulationReport`
+   - Create/update devices in NetBox at specified rack positions
+   - Rack-mounted devices: set U position in rack
+   - Shelf/desktop devices: assign to rack without specific U position (NetBox supports `position=None` for non-racked devices within a rack)
+   - Set asset tags, serial numbers, names from labels
+   - Create new device types if `create_new_type` was confirmed
+   - Respects SyncMode (dry_run/auto/confirm)
+
+## Vision Providers (`vision/`)
+
+### Base Class (`vision/base.py`)
+
+```python
+class VisionProvider(ABC):
+    @abstractmethod
+    async def analyze_rack(self, image: bytes, prompt: str, context: RackContext) -> dict:
+        """Send rack image for analysis. Returns structured JSON response."""
+
+    @abstractmethod
+    async def identify_device(self, crop: bytes, prompt: str) -> dict:
+        """Send cropped device image for closer identification."""
+```
+
+### Claude Vision (`vision/claude.py`)
+
+Primary implementation using the Anthropic API with vision capabilities.
+
+```python
+class ClaudeVisionProvider(VisionProvider):
+    def __init__(self, api_key: str, model: str = "claude-sonnet-4-20250514")
+```
+
+- Uses `anthropic` Python SDK with image content blocks
+- Structured prompts requesting JSON output with device positions, model names, confidence scores, and readable labels
+- `analyze_rack`: sends full rack photo with prompt describing expected output format
+- `identify_device`: sends cropped image for closer inspection of a single device
+
+**Adding a new vision provider:** Subclass `VisionProvider`, implement 2 methods. Configure via `Config.vision_provider` setting.
+
 ## Transports
 
 ### MCP Server (`transports/mcp/`)
@@ -298,6 +385,12 @@ Tool prefixes and definitions:
 - `sync_topology` — LLDP-based cable sync
 - All accept `mode` parameter
 
+**`rack_*`** — rack photo population:
+- `rack_analyze_photo` — analyze a rack photo (file path, URL, or NetBox image attachment ID), returns annotated overview image + detected devices with confidence scores
+- `rack_get_uncertain` — get cropped images and details for devices below confidence threshold, for user review
+- `rack_confirm_device` — user confirms or corrects a detected device (model, position, labels, device type selection)
+- `rack_populate` — push confirmed devices into NetBox rack, accepts `mode` parameter (dry_run/auto/confirm)
+
 ### HTTP Server (`transports/http/`)
 
 FastAPI app entry point: `python -m netbox_skill.transports.http`
@@ -322,6 +415,10 @@ class Config(BaseModel):
     max_concurrent_sessions: int = 10  # MAX_CONCURRENT_SESSIONS
     ssh_timeout: int = 30     # SSH_TIMEOUT
     config_file: str | None = None  # CONFIG_FILE
+    vision_provider: str = "claude"  # VISION_PROVIDER (claude, openai, local)
+    anthropic_api_key: str | None = None  # ANTHROPIC_API_KEY
+    vision_model: str = "claude-sonnet-4-20250514"  # VISION_MODEL
+    vision_confidence_threshold: float = 0.7  # VISION_CONFIDENCE_THRESHOLD
 ```
 
 Optional YAML config file for device/group-specific overrides:
@@ -355,6 +452,9 @@ NetBoxSkillError (base)
     DeviceConnectionError (SSH failures)
     CommandError (unexpected output)
     UnknownPlatformError (no parser for platform)
+  VisionError
+    VisionProviderError (API call to vision provider failed)
+    ImageProcessingError (image decode, crop, or annotation failure)
   ConfigError (missing/invalid configuration)
 ```
 
@@ -364,8 +464,9 @@ NetBoxSkillError (base)
 
 **Unit tests (`tests/unit/`):**
 - **Parsers:** Tested against captured CLI output fixtures in `tests/fixtures/{vendor}/`. One fixture file per command per vendor. Tests verify correct parsing into Pydantic models.
-- **Services:** Mocked clients. Test business logic: upsert, diff generation, conflict detection, bulk operations.
+- **Services:** Mocked clients. Test business logic: upsert, diff generation, conflict detection, bulk operations. Rack vision service tested with mock vision provider returning canned responses.
 - **Clients:** Mocked httpx responses (NetBox client) for pagination, error mapping, serialization.
+- **Vision:** Mock vision provider returns predefined analysis results. Test fuzzy matching, confidence filtering, confirmation merging.
 
 **Integration tests (`tests/integration/`):**
 - **Mock SSH sessions:** asyncssh fake server returning fixture data. Full flow: connect > execute > parse > models.
@@ -383,6 +484,8 @@ mcp[cli]        # MCP SDK for MCP server transport
 fastapi         # HTTP transport (scaffolded)
 uvicorn         # ASGI server for FastAPI
 pyyaml          # Config file parsing
+anthropic       # Claude Vision API (primary vision provider)
+pillow          # Image cropping and annotation for rack photos
 pytest          # Test runner (dev)
 pytest-asyncio  # Async test support (dev)
 respx           # HTTP mocking (dev)
@@ -397,3 +500,5 @@ respx           # HTTP mocking (dev)
 - TextFSM/NTC-Templates integration (regex parsing first)
 - SNMP-based discovery
 - Scheduled/periodic discovery runs
+- Cable tracing from rack photos (rear-panel photo analysis)
+- Alternative vision providers (OpenAI, local models) — interface defined, only Claude implemented initially
