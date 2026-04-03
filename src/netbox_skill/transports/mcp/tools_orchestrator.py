@@ -2,36 +2,23 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool
 
 from netbox_skill.models.common import DeviceTarget, SyncMode
 from netbox_skill.services.orchestrator import OrchestratorService
 
 
-def register_orchestrator_tools(server: Server, orchestrator: OrchestratorService) -> None:
-
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
-        return [
-            Tool(name="sync_device", description="Discover a device and sync to NetBox", inputSchema={"type": "object", "properties": {"host": {"type": "string"}, "platform": {"type": "string"}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["host", "platform"]}),
-            Tool(name="sync_devices", description="Sync multiple devices to NetBox", inputSchema={"type": "object", "properties": {"targets": {"type": "array", "items": {"type": "object", "properties": {"host": {"type": "string"}, "platform": {"type": "string"}}, "required": ["host", "platform"]}}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["targets"]}),
-            Tool(name="sync_topology", description="Sync LLDP-based topology to NetBox cables", inputSchema={"type": "object", "properties": {"targets": {"type": "array", "items": {"type": "object"}}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["targets"]}),
-        ]
-
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        try:
-            result = await _dispatch(name, arguments, orchestrator)
-            return [TextContent(type="text", text=json.dumps(result, default=str))]
-        except Exception as e:
-            return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+def get_tools() -> list[Tool]:
+    return [
+        Tool(name="sync_device", description="Discover a device and sync to NetBox", inputSchema={"type": "object", "properties": {"host": {"type": "string"}, "platform": {"type": "string"}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["host", "platform"]}),
+        Tool(name="sync_devices", description="Sync multiple devices to NetBox", inputSchema={"type": "object", "properties": {"targets": {"type": "array", "items": {"type": "object", "properties": {"host": {"type": "string"}, "platform": {"type": "string"}}, "required": ["host", "platform"]}}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["targets"]}),
+        Tool(name="sync_topology", description="Sync LLDP-based topology to NetBox cables", inputSchema={"type": "object", "properties": {"targets": {"type": "array", "items": {"type": "object"}}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["targets"]}),
+    ]
 
 
-async def _dispatch(name: str, args: dict[str, Any], orchestrator: OrchestratorService) -> Any:
+async def dispatch(name: str, args: dict[str, Any], orchestrator: OrchestratorService) -> Any:
     mode = SyncMode(args.get("mode", "dry_run"))
     if name == "sync_device":
         target = DeviceTarget(host=args["host"], platform=args["platform"])
@@ -45,4 +32,4 @@ async def _dispatch(name: str, args: dict[str, Any], orchestrator: OrchestratorS
         targets = [DeviceTarget(**t) for t in args["targets"]]
         report = await orchestrator.sync_topology(targets, mode)
         return report.model_dump()
-    return {"error": f"Unknown tool: {name}"}
+    return None

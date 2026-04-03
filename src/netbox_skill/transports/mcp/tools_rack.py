@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import base64
-import json
 from typing import Any
 
-from mcp.server import Server
-from mcp.types import Tool, TextContent
+from mcp.types import Tool
 
 from netbox_skill.models.common import SyncMode
 from netbox_skill.models.rack_vision import DeviceConfirmation, RackContext
@@ -17,29 +15,16 @@ from netbox_skill.services.rack_vision import RackVisionService
 _current_analysis = None
 
 
-def register_rack_tools(server: Server, rack_vision: RackVisionService) -> None:
-    global _current_analysis
-
-    @server.list_tools()
-    async def list_tools() -> list[Tool]:
-        return [
-            Tool(name="rack_analyze_photo", description="Analyze a rack photo to detect devices and their positions", inputSchema={"type": "object", "properties": {"image_base64": {"type": "string", "description": "Base64-encoded rack photo"}, "rack_id": {"type": "integer"}, "site": {"type": "string"}, "expected_devices": {"type": "array", "items": {"type": "string"}}}, "required": ["image_base64"]}),
-            Tool(name="rack_get_uncertain", description="Get devices that need user confirmation from the last analysis", inputSchema={"type": "object", "properties": {}}),
-            Tool(name="rack_confirm_device", description="Confirm or correct a detected device", inputSchema={"type": "object", "properties": {"index": {"type": "integer"}, "confirmed": {"type": "boolean"}, "corrected_model": {"type": "string"}, "device_type_id": {"type": "integer"}, "create_new_type": {"type": "boolean"}}, "required": ["index", "confirmed"]}),
-            Tool(name="rack_populate", description="Push confirmed devices into NetBox", inputSchema={"type": "object", "properties": {"rack_id": {"type": "integer"}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["rack_id"]}),
-        ]
-
-    @server.call_tool()
-    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
-        global _current_analysis
-        try:
-            result = await _dispatch(name, arguments, rack_vision)
-            return [TextContent(type="text", text=json.dumps(result, default=str))]
-        except Exception as e:
-            return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
+def get_tools() -> list[Tool]:
+    return [
+        Tool(name="rack_analyze_photo", description="Analyze a rack photo to detect devices and their positions", inputSchema={"type": "object", "properties": {"image_base64": {"type": "string", "description": "Base64-encoded rack photo"}, "rack_id": {"type": "integer"}, "site": {"type": "string"}, "expected_devices": {"type": "array", "items": {"type": "string"}}}, "required": ["image_base64"]}),
+        Tool(name="rack_get_uncertain", description="Get devices that need user confirmation from the last analysis", inputSchema={"type": "object", "properties": {}}),
+        Tool(name="rack_confirm_device", description="Confirm or correct a detected device", inputSchema={"type": "object", "properties": {"index": {"type": "integer"}, "confirmed": {"type": "boolean"}, "corrected_model": {"type": "string"}, "device_type_id": {"type": "integer"}, "create_new_type": {"type": "boolean"}}, "required": ["index", "confirmed"]}),
+        Tool(name="rack_populate", description="Push confirmed devices into NetBox", inputSchema={"type": "object", "properties": {"rack_id": {"type": "integer"}, "mode": {"type": "string", "enum": ["dry_run", "auto", "confirm"], "default": "dry_run"}}, "required": ["rack_id"]}),
+    ]
 
 
-async def _dispatch(name: str, args: dict[str, Any], rack_vision: RackVisionService) -> Any:
+async def dispatch(name: str, args: dict[str, Any], rack_vision: RackVisionService) -> Any:
     global _current_analysis
 
     if name == "rack_analyze_photo":
@@ -77,4 +62,4 @@ async def _dispatch(name: str, args: dict[str, Any], rack_vision: RackVisionServ
         report = await rack_vision.populate_rack(_current_analysis, args["rack_id"], mode)
         return report.model_dump()
 
-    return {"error": f"Unknown tool: {name}"}
+    return None

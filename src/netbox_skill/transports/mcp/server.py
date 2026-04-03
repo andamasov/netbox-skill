@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
+import json
+from typing import Any
+
 from mcp.server import Server
 from mcp.server.stdio import stdio_server
+from mcp.types import TextContent, Tool
 
 from netbox_skill.clients.netbox import NetBoxClient
 from netbox_skill.config import load_config
+from netbox_skill.models.common import CredentialSet, DeviceTarget
 from netbox_skill.services.discovery import DiscoveryService
 from netbox_skill.services.netbox import NetBoxService
 from netbox_skill.services.orchestrator import OrchestratorService
 from netbox_skill.services.rack_vision import RackVisionService
+from netbox_skill.transports.mcp import tools_discovery, tools_netbox, tools_orchestrator, tools_rack
 from netbox_skill.vision.claude import ClaudeVisionProvider
-from netbox_skill.models.common import CredentialSet, DeviceTarget
-
-from netbox_skill.transports.mcp.tools_netbox import register_netbox_tools
-from netbox_skill.transports.mcp.tools_discovery import register_discovery_tools
-from netbox_skill.transports.mcp.tools_orchestrator import register_orchestrator_tools
-from netbox_skill.transports.mcp.tools_rack import register_rack_tools
 
 
 class DefaultCredentialResolver:
@@ -74,11 +74,33 @@ def create_server() -> Server:
             confidence_threshold=config.vision_confidence_threshold,
         )
 
-    register_netbox_tools(server, netbox_service)
-    register_discovery_tools(server, discovery_service)
-    register_orchestrator_tools(server, orchestrator_service)
+    # Collect all tools from all modules
+    all_tools: list[Tool] = []
+    all_tools.extend(tools_netbox.get_tools())
+    all_tools.extend(tools_discovery.get_tools())
+    all_tools.extend(tools_orchestrator.get_tools())
     if rack_vision_service:
-        register_rack_tools(server, rack_vision_service)
+        all_tools.extend(tools_rack.get_tools())
+
+    @server.list_tools()
+    async def list_tools() -> list[Tool]:
+        return all_tools
+
+    @server.call_tool()
+    async def call_tool(name: str, arguments: dict[str, Any]) -> list[TextContent]:
+        try:
+            result = await tools_netbox.dispatch(name, arguments, netbox_service)
+            if result is None:
+                result = await tools_discovery.dispatch(name, arguments, discovery_service)
+            if result is None:
+                result = await tools_orchestrator.dispatch(name, arguments, orchestrator_service)
+            if result is None and rack_vision_service:
+                result = await tools_rack.dispatch(name, arguments, rack_vision_service)
+            if result is None:
+                result = {"error": f"Unknown tool: {name}"}
+            return [TextContent(type="text", text=json.dumps(result, default=str))]
+        except Exception as e:
+            return [TextContent(type="text", text=json.dumps({"error": str(e)}))]
 
     return server
 
