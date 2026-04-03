@@ -1,0 +1,5 @@
+Platform: x86_64-mlnx_msn2700-r0
+HwSKU: Mellanox-SN2700
+ASIC: mellanox
+Serial Number: MT1234567890
+Hardware Revision: A1

@@ -1,0 +1,6 @@
+Capability codes: (R) Router, (B) Bridge, (O) Other
+LocalPort    RemoteDevice       RemotePort     Capability    RemotePortID
+-----------  -----------------  -------------  ------------  ----------------
+Ethernet0    sw-core-01         Ethernet48     BR            Ethernet48
+Ethernet4    sw-access-02       Ethernet1      B             Ethernet1
+Total entries displayed:  2

@@ -1,0 +1,6 @@
+  No.    Vlan  MacAddress         Port           Type
+-----  ------  -----------------  -------------  -------
+    1     100  AA:BB:CC:DD:EE:01  Ethernet0      Dynamic
+    2     100  AA:BB:CC:DD:EE:02  Ethernet4      Dynamic
+    3     200  AA:BB:CC:DD:EE:03  Ethernet8      Static
+Total number of entries 3
