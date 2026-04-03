@@ -1,0 +1,14 @@
+
+LLDP Remote Device Detail
+
+Local Interface: 0/1
+    Remote Identifier: AA:BB:CC:DD:EE:01
+    Chassis ID: AA:BB:CC:DD:EE:01
+    Port ID: Gi0/1
+    System Name: sw-core-01
+
+Local Interface: 0/2
+    Remote Identifier: AA:BB:CC:DD:EE:02
+    Chassis ID: AA:BB:CC:DD:EE:02
+    Port ID: Gi0/2
+    System Name: sw-access-02

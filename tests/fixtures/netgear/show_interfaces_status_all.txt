@@ -1,0 +1,7 @@
+
+                                        Link    Physical    Physical    Media
+Port       Name            Admin Mode   State   Mode        Status      Type
+--------- --------------- ------------ ------  ----------- ----------- -----------
+0/1        uplink          Enable       Up      Auto        100 Full    Copper
+0/2        server-port     Enable       Up      Auto        1000 Full   Copper
+0/5        printer         Enable       Down    Auto                    Copper

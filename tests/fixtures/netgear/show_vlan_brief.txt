@@ -1,0 +1,6 @@
+
+VLAN ID  VLAN Name                         VLAN Type
+-------  --------------------------------  ---------
+1        Default                           Default
+100      Management                        Static
+200      Servers                           Static

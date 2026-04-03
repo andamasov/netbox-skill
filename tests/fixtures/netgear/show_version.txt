@@ -1,0 +1,6 @@
+
+Machine Description... Netgear M4300-28G
+System Name........... sw-access-01
+Software Version...... 12.0.17.1
+Machine Model......... M4300-28G
+Serial Number......... ABC12345678

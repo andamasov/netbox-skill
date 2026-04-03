@@ -1,0 +1,6 @@
+
+VLAN ID    MAC Address         Type      Port
+-------    -----------------   -------   -----------
+100        AA:BB:CC:DD:EE:01   Dynamic   0/1
+100        AA:BB:CC:DD:EE:02   Dynamic   0/2
+200        AA:BB:CC:DD:EE:03   Dynamic   0/5

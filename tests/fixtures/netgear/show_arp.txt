@@ -1,0 +1,6 @@
+
+IP Address       MAC Address         Interface
+---------------  -----------------   ---------
+10.0.0.1         AA:BB:CC:DD:EE:01   vlan 100
+10.0.0.2         AA:BB:CC:DD:EE:02   vlan 100
+192.168.1.1      AA:BB:CC:DD:EE:03   vlan 200
