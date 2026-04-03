@@ -125,7 +125,26 @@ Combined workflows: discover from devices -> diff against NetBox -> populate/upd
 
 ## Tech Stack
 
-To be determined during design phase. Prior work in this repo used TypeScript with Node.js.
+- Python 3.11+, Pydantic v2, httpx, asyncssh, mcp[cli], FastAPI, uvicorn, anthropic SDK, Pillow, PyYAML
+- Testing: pytest, pytest-asyncio, respx
+
+## Running
+
+### MCP Server
+```bash
+NETBOX_URL=https://netbox.example.com NETBOX_TOKEN=nbt_xxx python -m netbox_skill.transports.mcp.server
+```
+
+### HTTP Server (scaffold)
+```bash
+python -m netbox_skill.transports.http.app
+```
+
+### Tests
+```bash
+pip install -e ".[dev]"
+pytest tests/ -v
+```
 
 ## Repository
 
