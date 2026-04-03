@@ -1,0 +1,5 @@
+
+Port       Name           Status       Vlan    Duplex  Speed   Type
+Gi0/1      uplink         connected    100     a-full  a-1000  1000BaseTX
+Gi0/2      server         connected    200     a-full  a-1000  1000BaseTX
+Gi0/10     unused         notconnect   1       auto    auto    1000BaseTX

@@ -1,0 +1,6 @@
+
+Vlan    Mac Address       Type        Ports
+----    -----------       --------    -----
+100     AA:BB:CC:DD:EE:01 DYNAMIC     Gi0/1
+100     AA:BB:CC:DD:EE:02 DYNAMIC     Gi0/2
+200     AA:BB:CC:DD:EE:03 STATIC      Gi0/10

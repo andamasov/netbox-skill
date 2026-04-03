@@ -1,0 +1,7 @@
+
+FS S3900-24T4S Software, Version 2.5.0
+Copyright (C) 2024 FS.COM Inc.
+Hardware Version: V1.0
+Serial Number: FSN123456789
+System Name: sw-dist-01
+Uptime is 45 days, 12 hours, 30 minutes

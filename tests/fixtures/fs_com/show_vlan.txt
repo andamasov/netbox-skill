@@ -1,0 +1,6 @@
+
+VLAN  Name                             Status    Ports
+----  -------------------------------- --------- -------------------------------
+1     default                          active    Gi0/10
+100   Management                       active    Gi0/1
+200   Servers                          active    Gi0/2
